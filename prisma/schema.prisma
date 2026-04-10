@@ -1,0 +1,281 @@
+// WellWire Lite — Prisma Schema
+// Designed to be extensible: adding New Mexico = insert a State row + run new ingestion
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Reference tables
+// ─────────────────────────────────────────────────────────────────
+
+model State {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(2)  // TX, ND, NM, etc.
+  name      String
+  counties  County[]
+  wells     Well[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("states")
+}
+
+model County {
+  id        Int      @id @default(autoincrement())
+  stateId   Int      @map("state_id")
+  state     State    @relation(fields: [stateId], references: [id])
+  name      String
+  fipsCode  String?  @map("fips_code") @db.VarChar(10)
+  wells     Well[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([stateId, name])
+  @@map("counties")
+}
+
+model Operator {
+  id          Int      @id @default(autoincrement())
+  name        String
+  normalizedName String @map("normalized_name") // lowercase, stripped
+  taxId       String?  @map("tax_id")
+  phone       String?
+  address     String?
+  wells       Well[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([normalizedName])
+  @@map("operators")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Core well data
+// ─────────────────────────────────────────────────────────────────
+
+model Well {
+  id            Int         @id @default(autoincrement())
+  apiNumber     String      @unique @map("api_number") @db.VarChar(20)
+  // Format: SS-CCC-NNNNN-NN (state-county-unique-sidetrack)
+  wellName      String      @map("well_name")
+  operatorId    Int         @map("operator_id")
+  operator      Operator    @relation(fields: [operatorId], references: [id])
+  countyId      Int         @map("county_id")
+  county        County      @relation(fields: [countyId], references: [id])
+  stateId       Int         @map("state_id")
+  state         State       @relation(fields: [stateId], references: [id])
+  latitude      Decimal?    @db.Decimal(10, 7)
+  longitude     Decimal?    @db.Decimal(10, 7)
+  status        WellStatus  @default(PERMITTED)
+  wellType      WellType    @default(OIL) @map("well_type")
+  spudDate      DateTime?   @map("spud_date")
+  completionDate DateTime?  @map("completion_date")
+  totalDepth    Int?        @map("total_depth")    // feet
+  formation     String?
+  section       String?
+  township      String?
+  range         String?
+  permits       Permit[]
+  production    Production[]
+  watchlistWells WatchlistWell[]
+  alerts        Alert[]
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@index([operatorId])
+  @@index([countyId])
+  @@index([stateId])
+  @@index([status])
+  @@map("wells")
+}
+
+enum WellStatus {
+  PERMITTED
+  DRILLING
+  COMPLETED
+  PRODUCING
+  SHUT_IN
+  ABANDONED
+  PLUGGED
+
+  @@map("well_status")
+}
+
+enum WellType {
+  OIL
+  GAS
+  OIL_GAS
+  WATER_DISPOSAL
+  INJECTION
+  DRY_HOLE
+
+  @@map("well_type")
+}
+
+model Permit {
+  id           Int          @id @default(autoincrement())
+  wellId       Int          @map("well_id")
+  well         Well         @relation(fields: [wellId], references: [id])
+  permitNumber String?      @map("permit_number")
+  permitType   PermitType   @map("permit_type")
+  issuedDate   DateTime?    @map("issued_date")
+  expiresDate  DateTime?    @map("expires_date")
+  approvedDate DateTime?    @map("approved_date")
+  status       PermitStatus @default(PENDING)
+  notes        String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@index([wellId])
+  @@map("permits")
+}
+
+enum PermitType {
+  ORIGINAL
+  REENTRY
+  DEEPENING
+  EXTENSION
+  AMENDMENT
+  PLUGGING
+
+  @@map("permit_type")
+}
+
+enum PermitStatus {
+  PENDING
+  APPROVED
+  ISSUED
+  EXPIRED
+  CANCELLED
+  REVOKED
+
+  @@map("permit_status")
+}
+
+model Production {
+  id           Int      @id @default(autoincrement())
+  wellId       Int      @map("well_id")
+  well         Well     @relation(fields: [wellId], references: [id])
+  reportMonth  DateTime @map("report_month") // first day of month
+  oilBbl       Decimal  @default(0) @map("oil_bbl") @db.Decimal(12, 2)
+  gasMcf       Decimal  @default(0) @map("gas_mcf") @db.Decimal(12, 2)
+  waterBbl     Decimal  @default(0) @map("water_bbl") @db.Decimal(12, 2)
+  daysProduced Int?     @map("days_produced")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([wellId, reportMonth])
+  @@index([wellId])
+  @@index([reportMonth])
+  @@map("production")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Users (demo mode: single seeded user, no auth in v1)
+// ─────────────────────────────────────────────────────────────────
+
+model User {
+  id         Int         @id @default(autoincrement())
+  email      String      @unique
+  name       String?
+  watchlists Watchlist[]
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Watchlists + Alert Rules
+// ─────────────────────────────────────────────────────────────────
+
+model Watchlist {
+  id           Int             @id @default(autoincrement())
+  userId       Int             @map("user_id")
+  user         User            @relation(fields: [userId], references: [id])
+  name         String
+  description  String?
+  wells        WatchlistWell[]
+  alertRules   AlertRule[]
+  alerts       Alert[]
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  @@map("watchlists")
+}
+
+model WatchlistWell {
+  id          Int       @id @default(autoincrement())
+  watchlistId Int       @map("watchlist_id")
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  wellId      Int       @map("well_id")
+  well        Well      @relation(fields: [wellId], references: [id])
+  addedAt     DateTime  @default(now()) @map("added_at")
+
+  @@unique([watchlistId, wellId])
+  @@map("watchlist_wells")
+}
+
+model AlertRule {
+  id          Int           @id @default(autoincrement())
+  watchlistId Int           @map("watchlist_id")
+  watchlist   Watchlist     @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  ruleType    AlertRuleType @map("rule_type")
+  // For PRODUCTION_THRESHOLD: threshold value in bbl or mcf
+  threshold   Decimal?      @db.Decimal(12, 2)
+  // For STATUS_CHANGE: comma-separated target statuses e.g. "PRODUCING,COMPLETED"
+  targetStatus String?      @map("target_status")
+  isActive    Boolean       @default(true) @map("is_active")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@map("alert_rules")
+}
+
+enum AlertRuleType {
+  NEW_PERMIT           // new permit issued for any watched well's county/operator
+  STATUS_CHANGE        // watched well changes to specific status
+  FIRST_PRODUCTION     // watched well reports production for first time
+  PRODUCTION_THRESHOLD // monthly production exceeds threshold
+
+  @@map("alert_rule_type")
+}
+
+model Alert {
+  id          Int       @id @default(autoincrement())
+  watchlistId Int       @map("watchlist_id")
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  wellId      Int?      @map("well_id")
+  well        Well?     @relation(fields: [wellId], references: [id])
+  ruleType    AlertRuleType @map("rule_type")
+  message     String
+  details     Json?
+  isRead      Boolean   @default(false) @map("is_read")
+  emailSent   Boolean   @default(false) @map("email_sent")
+  triggeredAt DateTime  @default(now()) @map("triggered_at")
+
+  @@index([watchlistId])
+  @@index([triggeredAt])
+  @@map("alerts")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Ingestion audit log
+// ─────────────────────────────────────────────────────────────────
+
+model IngestionRun {
+  id          Int      @id @default(autoincrement())
+  source      String   // "texas-rrc", "ndic"
+  runType     String   @map("run_type") // "permits", "production", "wells"
+  startedAt   DateTime @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  rowsInserted Int     @default(0) @map("rows_inserted")
+  rowsUpdated  Int     @default(0) @map("rows_updated")
+  errors       Int     @default(0)
+  status       String  @default("running") // "running", "success", "failed"
+  message      String?
+
+  @@map("ingestion_runs")
+}
