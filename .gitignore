@@ -1,0 +1,7 @@
+node_modules/
+client/dist/
+planner.db
+planner.db-shm
+planner.db-wal
+*.log
+.DS_Store
