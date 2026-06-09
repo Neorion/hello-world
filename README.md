@@ -1,4 +1,4 @@
-# Lattice — strategic planning tool
+# Throughline — strategic planning tool
 
 A metamodel-driven strategic planning tool for business and solution architects.
 Map **projects, capabilities, value streams, technologies and themes** — and the

@@ -1,4 +1,4 @@
--- Lattice — metamodel-driven strategic planning tool.
+-- Throughline — metamodel-driven strategic planning tool.
 -- The metamodel (entity types, attributes, legal relationships) is stored as data,
 -- so new types and views can be added without a code change.
 

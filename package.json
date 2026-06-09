@@ -1,9 +1,9 @@
 {
-  "name": "lattice",
+  "name": "throughline",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Lattice — a metamodel-driven strategic planning tool for business and solution architects.",
+  "description": "Throughline — a metamodel-driven strategic planning tool for business and solution architects.",
   "scripts": {
     "dev:server": "node --watch server/index.js",
     "dev:client": "npm --prefix client run dev",

@@ -149,12 +149,12 @@ export default function App() {
     }
   }
 
-  if (!types) return <div className="empty">Loading Lattice…</div>;
+  if (!types) return <div className="empty">Loading Throughline…</div>;
 
   return (
     <div className="app">
       <div className="topbar">
-        <div className="brand">Lattice<span className="dot">.</span></div>
+        <div className="brand">Throughline<span className="dot">.</span></div>
         <div className="tabs">
           {VIEWS.map((v) => (
             <button key={v.key} className={`tab ${view === v.key ? 'active' : ''}`} onClick={() => setView(v.key)}>

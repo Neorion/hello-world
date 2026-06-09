@@ -161,7 +161,7 @@ app.delete('/api/views/:id', (req, res) => {
 // --- Excel I/O ---
 app.get('/api/export', (req, res) => {
   const buf = exportWorkbook(db);
-  res.setHeader('Content-Disposition', 'attachment; filename="lattice.xlsx"');
+  res.setHeader('Content-Disposition', 'attachment; filename="throughline.xlsx"');
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.send(buf);
 });
@@ -188,5 +188,5 @@ if (fs.existsSync(clientDist)) {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`[lattice] API + app listening on http://localhost:${PORT}`);
+  console.log(`[throughline] API + app listening on http://localhost:${PORT}`);
 });
